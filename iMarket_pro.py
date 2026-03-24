@@ -44,6 +44,52 @@ st.set_page_config(
     layout="wide"
     )
 
+def check_password():
+    """返回 True 如果用户输入了正确的密码"""
+    
+    def password_entered():
+        # 直接从 Streamlit Cloud 的 Secrets 面板读取 [user_db]
+        # 注意：这里不再需要 open("users.json")，彻底摆脱本地文件
+        user_db = st.secrets.get("user_db", {})
+        
+        # 校验逻辑
+        username = st.session_state.get("username")
+        password = st.session_state.get("password")
+        
+        if username in user_db and str(user_db[username]) == str(password):
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # 安全删除明文密码
+            del st.session_state["username"]
+        else:
+            st.session_state["password_correct"] = False
+
+    # 如果尚未登录成功
+    if not st.session_state.get("password_correct", False):
+        # --- 这里的 UI 融入您的签名图 ---
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            # 自动加载您上传的签名图
+            st.image("J Signature.png", width=250)
+            st.title("🔐 iMarket Pro")
+            st.caption("AI-Powered Decision Engine | Studio v3.3")
+            
+            st.text_input("Username", key="username")
+            st.text_input("Password", type="password", key="password")
+            
+            if st.button("Login", use_container_width=True):
+                password_entered()
+                st.rerun()
+                
+            if st.session_state.get("password_correct") == False:
+                st.error("😕 Access Denied: Invalid credentials.")
+        return False
+    
+    return True
+
+# --- 执行全局拦截 ---
+if not check_password():
+    st.stop() # 拦截后续所有代码（包括 yfinance 抓取和模型加载）
+
 # --- 增强型财报日期抓取函数 (放在 main 函数之外) ---
 def get_safe_earnings_date(symbol):
     stock = yf.Ticker(symbol)
