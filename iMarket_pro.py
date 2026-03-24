@@ -63,7 +63,7 @@ def check_password():
     if not st.session_state.get("password_correct", False):
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            st.image("J Signature.png", width=250) # 您的签名图
+            #st.image("J Signature.png", width=250) # 您的签名图
             st.title("🔐 iMarket Pro")
             st.caption("AI-Powered Decision Engine | Studio v3.3")
             st.text_input("Username", key="login_username")
