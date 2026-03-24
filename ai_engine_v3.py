@@ -1,14 +1,25 @@
 import google.generativeai as genai
 import streamlit as st
 import re
+import os  # 建议加上
+
 
 # 启用缓存
 @st.cache_data(ttl=3600, show_spinner=False)
 def run_v3_specialized_report(ticker, segment, data_payload, lang="中文"):
-    # 1. 配置 API Key
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    
-    # 2. 初始化模型
+    # --- 核心修改：确保 API 在函数内部正确配置且缩进正确 ---
+    try:
+        if "GEMINI_API_KEY" in st.secrets:
+            api_key = st.secrets["GEMINI_API_KEY"]
+            genai.configure(api_key=api_key)
+        else:
+            return "❌ AI Engine Error: 未在 Streamlit Secrets 中找到 GEMINI_API_KEY。"
+    except Exception as e:
+        # 注意：这里的 st.error 必须缩进在 except 块内
+        st.error(f"密钥配置异常: {str(e)}")
+        return f"❌ API 配置失败: {str(e)}"
+        
+    # --- 以下您的模型设置和逻辑保持原样，不做任何修改 ---
     model = genai.GenerativeModel("gemini-3.1-flash-lite-preview") 
 
     # 3. 定义角色
@@ -17,6 +28,7 @@ def run_v3_specialized_report(ticker, segment, data_payload, lang="中文"):
         "financial": "CFO & Valuation Expert",
         "macro": "Global Macro Strategist"
     }
+
     role = roles.get(segment, "Market Expert")
 
     # 4. 根据维度定制指令

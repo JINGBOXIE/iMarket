@@ -250,7 +250,7 @@ def save_users(data):
 with st.sidebar:
     # --- 1. Logo 置顶 ---
     current_lang = st.session_state.get('lang_selector', 'English')
-    target_logo = "J Studio LOGO.PNG" if current_lang == "English" else "J Studio LOGO CN.PNG"
+    target_logo = "J Studio LOGO.PNG" if current_lang == "English" else "J Studio LOGO CN.png"
     st.image(target_logo, use_container_width=True)
 
     # --- 2. 登录与限额拦截 ---
@@ -430,7 +430,7 @@ with st.sidebar:
         return None
 
     # 获取处理好的签名图片数据
-    sig_b64 = get_base64_img("J Signature.PNG")
+    sig_b64 = get_base64_img("J Signature.png")
 
     if sig_b64:
         # 使用 Flexbox 布局确保文字与手写签名在垂直中轴线上完美对齐
@@ -1118,6 +1118,8 @@ if not prices.empty and ticker in prices.columns:
         st.error("❌ Failed to retrieve news. Run: `pip install -U yfinance`.")    
 else:
     st.error("❌ Data Fetch Failed. Check connection or Ticker.")
+
+
 
 
 
