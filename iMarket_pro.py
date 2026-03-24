@@ -247,41 +247,11 @@ def save_users(data):
     with open(USER_DB, "w") as f:
         json.dump(data, f, indent=4)
 
-
-
-# 获取当前文件的绝对目录
-current_dir = os.path.dirname(os.path.abspath(__file__))
-
 with st.sidebar:
-    # --- 1. Logo 逻辑 ---
+    # --- 1. Logo 置顶 ---
     current_lang = st.session_state.get('lang_selector', 'English')
-    
-    # 这里的名字必须和 GitHub 上的文件一模一样！
-    if current_lang == "English":
-        logo_filename = "J Studio LOGO.PNG"  # 后缀是大写 PNG
-    else:
-        logo_filename = "J Studio LOGO CN.png" # 后缀是小写 png
-    
-    logo_path = os.path.join(current_dir, logo_filename)
-
-    if os.path.exists(logo_path):
-        st.image(logo_path, use_container_width=True)
-    else:
-        # 如果还是找不到，显示文字，避免程序崩溃
-        st.subheader("iMarket Pro")
-
-# --- 2. 签名部分 (通常在页面底部) ---
-# 这里的名字必须匹配 J Signature.png
-sig_filename = "J Signature.png"
-sig_path = os.path.join(current_dir, sig_filename)
-
-if os.path.exists(sig_path):
-    st.image(sig_path, width=150)
-else:
-    st.markdown("---")
-    st.caption("_(Signed: J)_")
-    
-    # --- 接下来的代码（如语言切换器等） ---
+    target_logo = "J Studio LOGO.PNG" if current_lang == "English" else "J Studio LOGO CN.PNG"
+    st.image(target_logo, use_container_width=True)
 
     # --- 2. 登录与限额拦截 ---
     if "auth_user" not in st.session_state:
@@ -1148,6 +1118,7 @@ if not prices.empty and ticker in prices.columns:
         st.error("❌ Failed to retrieve news. Run: `pip install -U yfinance`.")    
 else:
     st.error("❌ Data Fetch Failed. Check connection or Ticker.")
+
 
 
 
