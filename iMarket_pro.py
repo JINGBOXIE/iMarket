@@ -813,19 +813,28 @@ if not prices.empty and ticker in prices.columns:
                 report = ae3.run_v3_specialized_report(ticker, "technical", str(t_payload), report_lang)
                 st.session_state['v3_t'] = extract_v3_score(report)
                 st.session_state['v3_t_text'] = report # 存入持久化内容
-
-    # --- 2. 财务与战略 (c2) ---
+# --- 2. 财务与战略 (c2) ---
     with c2:
         if st.button(b2_text, use_container_width=True):
             with st.spinner("Calculating Financial Moat..." if report_lang == "English" else "正在计算财务护城河..."):
+                # 获取估值数据
                 v_data = get_advanced_valuation(ticker, 0.15) 
+                
+                # --- 安全防御逻辑：防止 NoneType 导致 :.2f 崩溃 ---
+                # 使用 .get() 并设置默认值，如果数据缺失则显示 "N/A"
+                dcf_val = v_data.get('dcf_price')
+                upside = v_data.get('upside_pct')
+                ev_gp = v_data.get('ev_gp')
+
                 f_payload = {
-                    "DCF_Intrinsic_Value": f"{v_data['dcf_price']:.2f}",
-                    "Upside_Potential": f"{v_data['upside_pct']:.1f}%",
-                    "EV_to_GP_Ratio": f"{v_data['ev_gp']:.2f}",
+                    "DCF_Intrinsic_Value": f"{dcf_val:.2f}" if dcf_val is not None else "Data Missing",
+                    "Upside_Potential": f"{upside:.1f}%" if upside is not None else "N/A",
+                    "EV_to_GP_Ratio": f"{ev_gp:.2f}" if ev_gp is not None else "N/A",
                     "Fundamental_Metrics": "Revenue Growth, Net Margin, P/E, P/B, Dividend Yield",
                     "Cash_Position": "Free Cash Flow & Net Cash Adjustment included"
                 }
+                
+                # 调用 AI 引擎
                 report = ae3.run_v3_specialized_report(ticker, "financial", str(f_payload), report_lang)
                 st.session_state['v3_f'] = extract_v3_score(report)
                 st.session_state['v3_f_text'] = report # 存入持久化内容
