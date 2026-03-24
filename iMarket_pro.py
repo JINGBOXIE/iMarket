@@ -248,10 +248,28 @@ def save_users(data):
         json.dump(data, f, indent=4)
 
 with st.sidebar:
-    # --- 1. Logo 置顶 ---
+    # --- 1. Logo 逻辑（防崩溃版） ---
     current_lang = st.session_state.get('lang_selector', 'English')
-    target_logo = "J Studio LOGO.PNG" if current_lang == "English" else "J Studio LOGO CN.PNG"
-    st.image(target_logo, use_container_width=True)
+    
+    # 根据语言选择文件名
+    logo_filename = "J Studio LOGO.PNG" if current_lang == "English" else "J Studio LOGO CN.PNG"
+    
+    # 获取绝对路径
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    logo_path = os.path.join(current_dir, logo_filename)
+
+    # 核心修复：只有文件真的存在时才调用 st.image
+    if os.path.exists(logo_path):
+        st.image(logo_path, use_container_width=True)
+    else:
+        # 如果图片不存在，用美观的文字代替，绝不报错
+        st.subheader("📈 iMarket Pro")
+        if current_lang == "English":
+            st.caption("Investment Research Engine")
+        else:
+            st.caption("智能投资研究引擎")
+    
+    # --- 接下来的代码（如语言切换器等） ---
 
     # --- 2. 登录与限额拦截 ---
     if "auth_user" not in st.session_state:
@@ -430,7 +448,7 @@ with st.sidebar:
         return None
 
     # 获取处理好的签名图片数据
-    sig_b64 = get_base64_img("J Signature.PNG")
+    sig_b64 = get_base64_img("J Signature.png")
 
     if sig_b64:
         # 使用 Flexbox 布局确保文字与手写签名在垂直中轴线上完美对齐
