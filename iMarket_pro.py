@@ -43,6 +43,33 @@ st.set_page_config(
     page_icon="🤖",
     layout="wide"
     )
+
+
+def get_realtime_data(ticker):
+    # 1. 强制声明当前时间 (2026年)
+    now = datetime.now()
+    current_date_str = now.strftime("%Y-%m-%d")
+    
+    # 2. 强制抓取最新 Ticker 对象 (不使用缓存)
+    stock = yf.Ticker(ticker)
+    
+    # 3. 强制获取最新价格 (取最后 1 天的收盘价)
+    hist = stock.history(period="1d", interval="1m")
+    if not hist.empty:
+        latest_price = hist['Close'].iloc[-1]
+    else:
+        # 备选方案：抓取实时的 fast_info
+        latest_price = stock.fast_info.last_price
+
+    # 4. 构造 Payload 时，强制锁定 2026 年
+    data_payload = {
+        "analysis_date": current_date_str, # 明确告诉 AI 是 2026
+        "current_price": f"{latest_price:.2f}",
+        "market_status": "Real-time / Live Data",
+        # ... 其他财务数据
+    }
+    return data_payload
+
 # --- 新增：稳健型价格抓取函数 (防止 $nan) ---
 def get_stock_data(ticker):
     try:
@@ -802,58 +829,97 @@ if not prices.empty and ticker in prices.columns:
     with c1:
         if st.button(b1_text, use_container_width=True):
             with st.spinner("Executing Quant Scan..." if report_lang == "English" else "正在执行量化扫描..."):
+
+                # 1. 运行你刚才加入的实时数据函数
+                realtime_data = get_realtime_data(ticker)
+
+                # 2. 合并两个字典：既要 2026 日期，也要具体的 RSI/VIX 指标
                 t_payload = {
-                    "Price": f"{price_val:.2f}",
+                    # --- 时间与价格锚点 (解决 2024 问题) ---
+                    "Analysis_Date": realtime_data["analysis_date"], # 强制注入 2026-03-24
+                    "Current_Price": realtime_data["current_price"], # 强制使用实时价
+                    "Market_Status": realtime_data["market_status"],
+                    
+                    # --- 你原有的技术深度指标 ---
                     "MA_System": "5/10/30/180 Day Overlays",
                     "RSI": f"{rsi_series.iloc[-1]:.2f}" if 'rsi_series' in locals() else "N/A",
                     "VIX": f"{current_vix:.2f}" if 'current_vix' in locals() else "N/A",
                     "Volume_Status": "Latest vs 5D Average",
                     "Technical_Context": "Bollinger Bands & MACD included in charts"
                 }
+
+                # 3. 传给 AI (它现在同时拥有了时间锁和硬核指标)
                 report = ae3.run_v3_specialized_report(ticker, "technical", str(t_payload), report_lang)
                 st.session_state['v3_t'] = extract_v3_score(report)
                 st.session_state['v3_t_text'] = report # 存入持久化内容
+
 # --- 2. 财务与战略 (c2) ---
     with c2:
         if st.button(b2_text, use_container_width=True):
-            with st.spinner("Calculating Financial Moat..." if report_lang == "English" else "正在计算财务护城河..."):
-                # 获取估值数据
+            with st.spinner("Analyzing Financials & Valuation..." if report_lang == "English" else "正在分析财务与估值..."):
+                # 1. 强制获取 2026 实时时间与最新价
+                realtime = get_realtime_data(ticker)
+                
+                # 2. 获取深度财务估值数据
                 v_data = get_advanced_valuation(ticker, 0.15) 
                 
-                # --- 安全防御逻辑：防止 NoneType 导致 :.2f 崩溃 ---
-                # 使用 .get() 并设置默认值，如果数据缺失则显示 "N/A"
+                # 3. 提取变量并进行安全防御 (防止 None 导致崩溃)
                 dcf_val = v_data.get('dcf_price')
                 upside = v_data.get('upside_pct')
                 ev_gp = v_data.get('ev_gp')
 
+                # 4. 构造高度结构化的 Payload (解决 2024 日期幻觉)
                 f_payload = {
+                    "Analysis_Date": realtime["analysis_date"],      # 强制 2026-03-24
+                    "Current_Price": realtime["current_price"],      # 强制实时价格
+                    "Ticker": ticker,
                     "DCF_Intrinsic_Value": f"{dcf_val:.2f}" if dcf_val is not None else "Data Missing",
                     "Upside_Potential": f"{upside:.1f}%" if upside is not None else "N/A",
                     "EV_to_GP_Ratio": f"{ev_gp:.2f}" if ev_gp is not None else "N/A",
-                    "Fundamental_Metrics": "Revenue Growth, Net Margin, P/E, P/B, Dividend Yield",
-                    "Cash_Position": "Free Cash Flow & Net Cash Adjustment included"
+                    "Fundamental_Context": "Revenue Growth, Net Margin, P/E, P/B, Dividend Yield",
+                    "Risk_Adjustment": "Free Cash Flow & WACC (15%) considered"
                 }
                 
-                # 调用 AI 引擎
+                # 5. 调用 AI 引擎生成深度报告
                 report = ae3.run_v3_specialized_report(ticker, "financial", str(f_payload), report_lang)
+                
+                # 6. 持久化存储结果
                 st.session_state['v3_f'] = extract_v3_score(report)
-                st.session_state['v3_f_text'] = report # 存入持久化内容
+                st.session_state['v3_f_text'] = report
 
-    # --- 3. 宏观与周期 (c3) ---
+
+# --- 3. 宏观与周期 (c3) ---
     with c3:
         if st.button(b3_text, use_container_width=True):
             with st.spinner("Scanning Global Macro Radar..." if report_lang == "English" else "正在扫描全球宏观雷达..."):
+                # 1. 强制获取 2026 实时时间与最新价 (解决日期幻觉)
+                realtime = get_realtime_data(ticker)
+                
+                # 2. 构造宏观 Payload
                 m_payload = {
+                    # --- 核心时间锚点 ---
+                    "Analysis_Date": realtime["analysis_date"],      # 强制 2026-03-24
+                    "Current_Price": realtime["current_price"],      # 强制实时价格
                     "Ticker": ticker,
-                    "VIX_Level": f"{current_vix:.2f}" if 'current_vix' in locals() else "N/A",
-                    "DXY_Index": f"{dxy_val:.2f}" if 'dxy_val' in locals() else "N/A",
+                    
+                    # --- 宏观关键指标 (使用 .get() 或 locals 检查防止崩溃) ---
+                    "VIX_Level": f"{current_vix:.2f}" if 'current_vix' in locals() and current_vix is not None else "N/A",
+                    "DXY_Index": f"{dxy_val:.2f}" if 'dxy_val' in locals() and dxy_val is not None else "N/A",
+                    
+                    # --- 周期与风险逻辑 ---
                     "Sector_Context": f"Analysis based on {ticker}'s industry specific cycle",
-                    "Geopolitical_Risk_Level": "Medium-High (Supply Chain Focus)"
+                    "Macro_Environment": "Focusing on Interest Rate expectations & DXY correlation",
+                    "Geopolitical_Risk_Level": "Dynamic Supply Chain & Regulatory Assessment"
                 }
+                
+                # 3. 调用 AI 引擎执行宏观深度扫描
                 report = ae3.run_v3_specialized_report(ticker, "macro", str(m_payload), report_lang)
+                
+                # 4. 持久化存储结果
                 st.session_state['v3_c'] = extract_v3_score(report)
                 st.session_state['v3_c_text'] = report # 存入持久化内容
-
+                
+                
     # --- 4. 统一渲染展示区 (放在按钮之外，确保内容并存) ---
     # 只要存储器里有内容，就会一直显示，不会因为点击其他按钮而消失
     
