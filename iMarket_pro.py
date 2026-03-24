@@ -250,7 +250,7 @@ def save_users(data):
 with st.sidebar:
     # --- 1. Logo 置顶 ---
     current_lang = st.session_state.get('lang_selector', 'English')
-    target_logo = "J Studio LOGO.PNG" if current_lang == "English" else "J Studio LOGO CN.PNG"
+    target_logo = "J Studio LOGO.PNG" if current_lang == "English" else "J Studio LOGO CN.png"
     st.image(target_logo, use_container_width=True)
 
     # --- 2. 登录与限额拦截 ---
