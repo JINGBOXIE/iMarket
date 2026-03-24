@@ -82,7 +82,7 @@ if not check_password():
 
 # --- 2. 登录成功后的状态栏 (简单化) ---
 with st.sidebar:
-    st.image("J Signature.png", use_container_width=True)
+    #st.image("J Signature.png", use_container_width=True)
     st.markdown(f"### 👤 Welcome, **{st.session_state.get('auth_user', 'User')}**")
     if st.button("Logout", use_container_width=True):
         st.session_state["password_correct"] = False
