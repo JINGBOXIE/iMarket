@@ -44,51 +44,53 @@ st.set_page_config(
     layout="wide"
     )
 
+# --- 1. 全局权限拦截 (放在 main 逻辑之前) ---
 def check_password():
     """返回 True 如果用户输入了正确的密码"""
-    
     def password_entered():
-        # 直接从 Streamlit Cloud 的 Secrets 面板读取 [user_db]
-        # 注意：这里不再需要 open("users.json")，彻底摆脱本地文件
+        # 直接从云端 Secrets 读取 [user_db]
         user_db = st.secrets.get("user_db", {})
-        
-        # 校验逻辑
-        username = st.session_state.get("username")
-        password = st.session_state.get("password")
-        
-        if username in user_db and str(user_db[username]) == str(password):
+        entered_user = st.session_state.get("login_username", "").strip()
+        entered_pass = st.session_state.get("login_password", "").strip()
+
+        if entered_user in user_db and str(user_db[entered_user]) == entered_pass:
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # 安全删除明文密码
-            del st.session_state["username"]
+            st.session_state["auth_user"] = entered_user # 保留用户名用于显示
+            del st.session_state["login_password"]
         else:
             st.session_state["password_correct"] = False
 
-    # 如果尚未登录成功
     if not st.session_state.get("password_correct", False):
-        # --- 这里的 UI 融入您的签名图 ---
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            # 自动加载您上传的签名图
-            st.image("J Studio LOGO.PNG", width=250)
+            st.image("J Signature.png", width=250) # 您的签名图
             st.title("🔐 iMarket Pro")
             st.caption("AI-Powered Decision Engine | Studio v3.3")
-            
-            st.text_input("Username", key="username")
-            st.text_input("Password", type="password", key="password")
-            
+            st.text_input("Username", key="login_username")
+            st.text_input("Password", type="password", key="login_password")
             if st.button("Login", use_container_width=True):
                 password_entered()
                 st.rerun()
-                
             if st.session_state.get("password_correct") == False:
                 st.error("😕 Access Denied: Invalid credentials.")
         return False
-    
     return True
 
-# --- 执行全局拦截 ---
+# 执行拦截
 if not check_password():
-    st.stop() # 拦截后续所有代码（包括 yfinance 抓取和模型加载）
+    st.stop()
+
+# --- 2. 登录成功后的状态栏 (简单化) ---
+with st.sidebar:
+    st.image("J Signature.png", use_container_width=True)
+    st.markdown(f"### 👤 Welcome, **{st.session_state.get('auth_user', 'User')}**")
+    if st.button("Logout", use_container_width=True):
+        st.session_state["password_correct"] = False
+        st.session_state["auth_user"] = None
+        st.rerun()
+    st.divider()
+    
+
 
 # --- 增强型财报日期抓取函数 (放在 main 函数之外) ---
 def get_safe_earnings_date(symbol):
@@ -312,21 +314,7 @@ def get_reddit_sentiment(ticker):
         return 0, "N/A"
 
 ## --- 4. Sidebar Control (侧边栏控制区) ---
-# 1. 用户数据持久化函数 (定义在 sidebar 外部)
-USER_DB = "users.json"
 
-def load_users():
-    if not os.path.exists(USER_DB):
-        default_data = {"J": {"password": "888", "role": "super", "daily_limit": 999999, "used_today": 0, "last_reset": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}}
-        with open(USER_DB, "w") as f:
-            json.dump(default_data, f, indent=4)
-        return default_data
-    with open(USER_DB, "r") as f:
-        return json.load(f)
-
-def save_users(data):
-    with open(USER_DB, "w") as f:
-        json.dump(data, f, indent=4)
 
 with st.sidebar:
     # --- 1. Logo 置顶 ---
@@ -334,60 +322,7 @@ with st.sidebar:
     target_logo = "J Studio LOGO.PNG" if current_lang == "English" else "J Studio LOGO CN.png"
     st.image(target_logo, use_container_width=True)
 
-    # --- 2. 登录与限额拦截 ---
-    if "auth_user" not in st.session_state:
-        st.session_state.auth_user = None
 
-    if st.session_state.auth_user is None:
-        st.subheader("🔑 Login / 登录")
-        u_name = st.text_input("Username", key="login_username")
-        u_pass = st.text_input("Password", type="password", key="login_password")
-        if st.button("Login", use_container_width=True):
-            users = load_users()
-            if u_name in users and users[u_name]["password"] == u_pass:
-                st.session_state.auth_user = u_name
-                st.rerun()
-            else:
-                st.error("Invalid credentials")
-        st.stop()
-    
-    username = st.session_state.auth_user
-    users = load_users()
-    curr_user = users[username]
-    
-    # 24小时重置逻辑
-    try:
-        last_reset = datetime.strptime(curr_user["last_reset"], "%Y-%m-%d %H:%M:%S")
-    except:
-        last_reset = datetime.fromisoformat(curr_user["last_reset"].split('.')[0])
-
-    if datetime.now() - last_reset > timedelta(hours=24):
-        curr_user["used_today"] = 0
-        curr_user["last_reset"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        save_users(users)
-
-    is_super = curr_user["role"] == "super"
-    remaining = curr_user["daily_limit"] - curr_user["used_today"]
-    
-    # 用户状态栏
-    col_u, col_l = st.columns([2, 1])
-    with col_u:
-        st.write(f"👤 **{username}**")
-        st.caption("Super User" if is_super else f"Remains: {remaining}")
-    with col_l:
-        if st.button("Exit", use_container_width=True):
-            st.session_state.auth_user = None
-            st.rerun()
-
-    if not is_super:
-        st.progress(max(0.0, min(1.0, remaining / curr_user["daily_limit"])))
-    
-    if not is_super and remaining <= 0:
-        unlock_time = last_reset + timedelta(hours=24)
-        st.error(f"🛑 Limit reached. Reset at {unlock_time.strftime('%H:%M')}")
-        st.stop()
-
-    st.markdown("---")
 
     # --- 3. 语言与控制中心 ---
     report_lang = st.selectbox(
