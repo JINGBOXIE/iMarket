@@ -44,31 +44,30 @@ st.set_page_config(
     layout="wide"
     )
 
-
 def get_realtime_data(ticker):
-    # 1. 强制声明当前时间 (2026年)
     now = datetime.now()
-    current_date_str = now.strftime("%Y-%m-%d")
-    
-    # 2. 强制抓取最新 Ticker 对象 (不使用缓存)
-    stock = yf.Ticker(ticker)
-    
-    # 3. 强制获取最新价格 (取最后 1 天的收盘价)
-    hist = stock.history(period="1d", interval="1m")
-    if not hist.empty:
-        latest_price = hist['Close'].iloc[-1]
-    else:
-        # 备选方案：抓取实时的 fast_info
-        latest_price = stock.fast_info.last_price
-
-    # 4. 构造 Payload 时，强制锁定 2026 年
-    data_payload = {
-        "analysis_date": current_date_str, # 明确告诉 AI 是 2026
-        "current_price": f"{latest_price:.2f}",
-        "market_status": "Real-time / Live Data",
-        # ... 其他财务数据
+    # 默认保底数据
+    res = {
+        "analysis_date": now.strftime("%Y-%m-%d"),
+        "current_price": "N/A",
+        "market_status": "Offline/Cache"
     }
-    return data_payload
+    try:
+        stock = yf.Ticker(ticker)
+        # 简化抓取，避免 1m 频率被 Yahoo 封锁
+        hist = stock.history(period="1d")
+        if not hist.empty:
+            price = hist['Close'].iloc[-1]
+            res["current_price"] = f"{price:.2f}"
+            res["market_status"] = "Real-time Live"
+        else:
+            # 尝试另一种获取方式
+            price = stock.fast_info.get('last_price')
+            if price:
+                res["current_price"] = f"{price:.2f}"
+    except Exception as e:
+        print(f"Data Fetch Error: {e}") # 在 Logs 里能看到报错
+    return res
 
 # --- 新增：稳健型价格抓取函数 (防止 $nan) ---
 def get_stock_data(ticker):
