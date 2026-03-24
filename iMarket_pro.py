@@ -69,7 +69,7 @@ def check_password():
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             # 自动加载您上传的签名图
-            st.image("J Signature.png", width=250)
+            st.image("J Studio LOGO.PNG", width=250)
             st.title("🔐 iMarket Pro")
             st.caption("AI-Powered Decision Engine | Studio v3.3")
             
