@@ -37,13 +37,54 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
+
+
 # --- 1. Basic Configuration ---
 st.set_page_config(
-    page_title="iMarket AI Assistant: Smart Decision Engine", 
-    page_icon="J Studio icon.png",  # 直接指向您的图片文件
+    page_title="iMarket Pro | Studio", # 建议同步修改标题
+    page_icon="J Studio icon.png",     # 已经改为你的图标
     layout="wide"
-    )
+)
 
+# =========================================================
+# 【在此处插入全屏脚本】
+# =========================================================
+import streamlit.components.v1 as components
+
+components.html(
+    """
+    <script>
+    const head = window.parent.document.getElementsByTagName('head')[0];
+    
+    // 允许 Web App 全屏
+    const metaCapable = window.parent.document.createElement('meta');
+    metaCapable.name = "apple-mobile-web-app-capable";
+    metaCapable.content = "yes";
+    head.appendChild(metaCapable);
+
+    // 状态栏黑色透明处理
+    const metaStatus = window.parent.document.createElement('meta');
+    metaStatus.name = "apple-mobile-web-app-status-bar-style";
+    metaStatus.content = "black-translucent";
+    head.appendChild(metaStatus);
+
+    // 设置桌面图标标题
+    const metaTitle = window.parent.document.createElement('meta');
+    metaTitle.name = "apple-mobile-web-app-title";
+    metaTitle.content = "iMarket Pro";
+    head.appendChild(metaTitle);
+    </script>
+    """,
+    height=0,
+)
+# =========================================================
+
+# --- 2. 这里的原有逻辑保持不变 ---
+# (接下来的 CSS Style 注入...)
+st.markdown("""
+    <style>
+    ...
+    
 # --- 增强型财报日期抓取函数 (放在 main 函数之外) ---
 def get_safe_earnings_date(symbol):
     stock = yf.Ticker(symbol)
