@@ -14,6 +14,11 @@ import base64
 import os
 import json
 from datetime import datetime, timedelta
+import time
+
+
+
+        
 st.markdown("""
     <style>
     /* iMarket_pro.py 中的 style 部分 */
@@ -45,40 +50,90 @@ st.set_page_config(
     )
 
 # --- 1. 全局权限拦截 (放在 main 逻辑之前) ---
+
+# 确保导入了必要库
+import os
+from datetime import datetime, timedelta
+
+def manage_guest_access():
+    """统一管理 Guest 权限逻辑"""
+    if st.session_state.get("auth_user") != "guest":
+        return True, "Authorized"
+
+    log_file = "guest_usage.txt"
+    API_LIMIT = 5          # 每日/次限额
+    MAX_DURATION = 30      # 30分钟限制
+    COOLDOWN_HOURS = 3     # 3小时冷却
+
+    now = datetime.now()
+
+    # A. 检查登录时长
+    login_time = st.session_state.get("login_time", now)
+    if now - login_time > timedelta(minutes=MAX_DURATION):
+        st.session_state["password_correct"] = False 
+        return False, "Session expired (30 min limit). Please re-login."
+
+    # B. 读取本地限额数据
+    if not os.path.exists(log_file):
+        with open(log_file, "w") as f: f.write(f"{now.isoformat()},0,False")
+    
+    with open(log_file, "r") as f:
+        content = f.read().split(',')
+        last_time = datetime.fromisoformat(content[0])
+        count = int(content[1])
+        is_blocked = (content[2] == "True")
+
+    # C. 自动解除逻辑
+    if is_blocked:
+        if now - last_time < timedelta(hours=COOLDOWN_HOURS):
+            wait_time = timedelta(hours=COOLDOWN_HOURS) - (now - last_time)
+            mins = int(wait_time.total_seconds() / 60)
+            return False, f"Quota exceeded. Wait {mins} mins."
+        else:
+            is_blocked, count = False, 0 # 自动重置
+
+    return True, {"count": count, "is_blocked": is_blocked}
+
+def update_guest_usage(current_count):
+    """增加使用次数并保存"""
+    new_count = current_count + 1
+    is_blocked = new_count >= 5
+    with open("guest_usage.txt", "w") as f:
+        f.write(f"{datetime.now().isoformat()},{new_count},{is_blocked}")
+        
 def check_password():
-    """返回 True 如果用户输入了正确的密码"""
     def password_entered():
-        # 直接从云端 Secrets 读取 [user_db]
         user_db = st.secrets.get("user_db", {})
         entered_user = st.session_state.get("login_username", "").strip()
         entered_pass = st.session_state.get("login_password", "").strip()
 
+        # --- 新增：Guest 免密逻辑 ---
+        if entered_user.lower() == "guest":
+            st.session_state["password_correct"] = True
+            st.session_state["auth_user"] = "guest"
+            st.session_state["login_time"] = datetime.now() # 记录登录时间
+            return
+
+        # 普通用户密码校验
         if entered_user in user_db and str(user_db[entered_user]) == entered_pass:
             st.session_state["password_correct"] = True
-            st.session_state["auth_user"] = entered_user # 保留用户名用于显示
+            st.session_state["auth_user"] = entered_user
+            st.session_state["login_time"] = datetime.now()
             del st.session_state["login_password"]
         else:
             st.session_state["password_correct"] = False
 
     if not st.session_state.get("password_correct", False):
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            #st.image("J Signature.png", width=250) # 您的签名图
-            st.title("🔐 iMarket Pro")
-            st.caption("AI-Powered Decision Engine | Studio v3.3")
-            st.text_input("Username", key="login_username")
-            st.text_input("Password", type="password", key="login_password")
-            if st.button("Login", use_container_width=True):
-                password_entered()
-                st.rerun()
-            if st.session_state.get("password_correct") == False:
-                st.error("😕 Access Denied: Invalid credentials.")
+        # UI 部分保持简洁
+        st.title("🔐 iMarket Pro Access")
+        st.text_input("Username (Type 'guest' for free access)", key="login_username")
+        st.text_input("Password", type="password", key="login_password")
+        if st.button("Login"):
+            password_entered()
+            st.rerun()
         return False
     return True
 
-# 执行拦截
-if not check_password():
-    st.stop()
 
 # --- 2. 登录成功后的状态栏 (简单化) ---
 with st.sidebar:
@@ -801,6 +856,31 @@ if not prices.empty and ticker in prices.columns:
 
     # --- 1. 技术与情绪 (c1) ---
     with c1:
+
+        # 获取 Guest 状态
+        can_access, status = manage_guest_access()
+        
+        # 针对 Guest 的剩余次数提示
+        if st.session_state.auth_user == "guest" and can_access:
+            st.caption(f"Remaining calls: {5 - status['count']}")
+
+        if st.button(b1_text, use_container_width=True):
+            if not can_access:
+                st.error(f"🚫 {status}")
+            else:
+                with st.spinner("Executing Quant Scan..."):
+                    # 原有的 Payload 逻辑保持不变
+                    t_payload = {"ticker": ticker, "v3_score": st.session_state.get('v3_t', 0)} 
+                    report = ae3.run_v3_specialized_report(ticker, "technical", str(t_payload), report_lang)
+                    
+                    # --- 关键修改：扣除额度 ---
+                    if st.session_state.auth_user == "guest":
+                        update_guest_usage(status['count'])
+                    
+                    st.session_state['v3_t'] = extract_v3_score(report)
+                    st.session_state['v3_t_text'] = report
+                    st.rerun() # 刷新以更新上方 caption 的次数
+                
         if st.button(b1_text, use_container_width=True):
             with st.spinner("Executing Quant Scan..." if report_lang == "English" else "正在执行量化扫描..."):
                 t_payload = {
@@ -816,6 +896,26 @@ if not prices.empty and ticker in prices.columns:
                 st.session_state['v3_t_text'] = report # 存入持久化内容
 # --- 2. 财务与战略 (c2) ---
     with c2:
+           
+        can_access, status = manage_guest_access()
+        if st.session_state.auth_user == "guest" and can_access:
+            st.caption(f"Remaining calls: {5 - status['count']}")
+
+        if st.button(b2_text, use_container_width=True):
+            if not can_access:
+                st.error(f"🚫 {status}")
+            else:
+                with st.spinner("Calculating Financial Moat..."):
+                    # 原有逻辑...
+                    report = ae3.run_v3_specialized_report(ticker, "financial", "data_payload", report_lang)
+                    
+                    # --- 关键修改：扣除额度 ---
+                    if st.session_state.auth_user == "guest":
+                        update_guest_usage(status['count'])
+                    
+                    st.session_state['v3_f'] = extract_v3_score(report)
+                    st.session_state['v3_f_text'] = report
+                    st.rerun()
         if st.button(b2_text, use_container_width=True):
             with st.spinner("Calculating Financial Moat..." if report_lang == "English" else "正在计算财务护城河..."):
                 # 获取估值数据
@@ -842,6 +942,26 @@ if not prices.empty and ticker in prices.columns:
 
     # --- 3. 宏观与周期 (c3) ---
     with c3:
+
+        can_access, status = manage_guest_access()
+        if st.session_state.auth_user == "guest" and can_access:
+            st.caption(f"Remaining calls: {5 - status['count']}")
+
+        if st.button(b3_text, use_container_width=True):
+            if not can_access:
+                st.error(f"🚫 {status}")
+            else:
+                with st.spinner("Scanning Global Macro Radar..."):
+                    # 原有逻辑...
+                    report = ae3.run_v3_specialized_report(ticker, "macro", "macro_payload", report_lang)
+                    
+                    # --- 关键修改：扣除额度 ---
+                    if st.session_state.auth_user == "guest":
+                        update_guest_usage(status['count'])
+                    
+                    st.session_state['v3_c'] = extract_v3_score(report)
+                    st.session_state['v3_c_text'] = report
+                    st.rerun()
         if st.button(b3_text, use_container_width=True):
             with st.spinner("Scanning Global Macro Radar..." if report_lang == "English" else "正在扫描全球宏观雷达..."):
                 m_payload = {
