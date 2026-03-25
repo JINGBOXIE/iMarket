@@ -40,7 +40,7 @@ st.markdown("""
 # --- 1. Basic Configuration ---
 st.set_page_config(
     page_title="iMarket AI Assistant: Smart Decision Engine", 
-    page_icon="🤖",
+    page_icon="J Studio icon.png",  # 直接指向您的图片文件
     layout="wide"
     )
 
