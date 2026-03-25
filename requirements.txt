@@ -1,5 +1,5 @@
 streamlit
-finance >= 0.2.40
+finance>=0.2.40
 pandas
 matplotlib
 mplfinance
