@@ -1,5 +1,5 @@
 streamlit
-finance
+yfinance>=0.2.40
 pandas
 matplotlib
 mplfinance
@@ -7,3 +7,5 @@ feedparser
 requests
 google-generativeai
 plotly
+pytz
+numpy
