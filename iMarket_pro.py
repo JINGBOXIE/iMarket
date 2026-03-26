@@ -15,6 +15,7 @@ import os
 import json
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
+from market_analyst import MarketAnalyst
 # --- 1. Basic Configuration ---
 st.set_page_config(
     page_title="iMarket Pro | Studio", 
@@ -450,9 +451,41 @@ with st.sidebar:
         st.session_state["ticker_input_val"] = ticker_input
 
     ticker = ticker_input
-    
+        
 
 
+    # --- 在 iMarket_pro.py 对应侧边栏位置 ---
+
+    # 定义按钮标签与加载提示
+    if report_lang == "中文":
+        btn_label = "🚀 实时财经综合分析"
+        btn_help = "调用 iMarket V3.3 决策引擎，集成 2026 宏观与地缘政治深度扫描"
+        spinner_msg = "正在链接全球宏观数据与地缘政治情报..."
+    else:
+        btn_label = "🚀 Real-time Macro Analysis"
+        btn_help = "Activating V3.3 Engine with 2026 Geopolitical & Macro Scan"
+        spinner_msg = "Syncing global macro data and geopolitical intelligence..."
+
+    # 渲染按钮
+    if st.sidebar.button(btn_label, key="btn_integrated_analysis", help=btn_help, use_container_width=True, type="primary"):
+        with st.spinner(spinner_msg):
+            # 初始化指数数据（传递给 AI 参考）
+            index_data = {
+                "Oil": "$103",
+                "Rates": "3.5%-3.75%",
+                "VIX": "Tracking",
+                "Region": "Middle East / Hormuz Strait"
+            }
+            
+            # 初始化分析器
+            analyst = MarketAnalyst(watchlist_data=WATCHLIST_DATA, report_lang=report_lang)
+            
+            # 生成报告：AI 此时会根据 Prompt 自动生成带有地缘政治标题的内容
+            report_md = analyst.generate_content(index_data)
+            
+            # 显示报告弹窗
+            analyst.display_report(report_md)
+        
     # 4. 回溯周期滑块
     lb_label = "Lookback Period (Divergence)" if report_lang == "English" else "回溯周期 (背离分析)"
     lookback = st.slider(lb_label, 30, 250, 90)
