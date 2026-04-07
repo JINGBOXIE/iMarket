@@ -1,4 +1,30 @@
+# === Security & Privacy ===
+# 核心敏感文件：包含明文密码和超管权限
 users.json
-__pycache__/
-.DS_Store
+# 本地密钥文件：包含 Gemini API Key
+.streamlit/secrets.toml
 .env
+
+# === App Dynamic Stats ===
+# 动态统计文件：记录使用次数和重置时间
+user_stats.json
+
+# === System Junk ===
+# macOS/Windows 系统产生的冗余文件
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# === Python & IDE ===
+# 缓存文件夹和编译文件
+__pycache__/
+*.py[cod]
+*.class
+venv/
+.vscode/
+
+# === Redundant Backups ===
+# 旧版本备份脚本
+us_iMarket_pro.py
+# 自动化同步脚本（仅限本地使用）
+sync.sh

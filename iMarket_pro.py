@@ -18,8 +18,8 @@ import streamlit.components.v1 as components
 from market_analyst import MarketAnalyst
 # --- 1. Basic Configuration ---
 st.set_page_config(
-    page_title="iMarket Pro | Studio", 
-    page_icon="J Studio icon.png",
+    page_title="iMarket Pro | J Studio", 
+    page_icon="assets/J Studio icon.png",
     layout="wide"
 )
 
@@ -291,27 +291,54 @@ def get_reddit_sentiment(ticker):
         return 0, "N/A"
 
 ## --- 4. Sidebar Control (侧边栏控制区) ---
-# 1. 用户数据持久化函数 (定义在 sidebar 外部)
-USER_DB = "users.json"
+# --- 修改后的逻辑 ---
+USER_STATS = "user_stats.json"  # 仅用于存储动态次数，不存密码
 
+
+# --- 修改后的 load_users 内部逻辑 ---
+    
 def load_users():
-    if not os.path.exists(USER_DB):
-        default_data = {"J": {"password": "888", "role": "super", "daily_limit": 999999, "used_today": 0, "last_reset": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}}
-        with open(USER_DB, "w") as f:
-            json.dump(default_data, f, indent=4)
-        return default_data
-    with open(USER_DB, "r") as f:
-        return json.load(f)
-
+    # 从 Secrets 获取账号、密码、权限 (静态)
+    base_users = st.secrets.get("users", {})
+    
+    # 从本地文件获取使用次数 (动态)
+    if os.path.exists(USER_STATS):
+        with open(USER_STATS, "r") as f:
+            stats_data = json.load(f)
+    else:
+        stats_data = {k: {"used_today": 0, "last_reset": datetime.now().strftime("%Y-%m-%d %H:%M:%S")} 
+                      for k in base_users.keys()}
+    
+    # 合并：以 Secrets 的账号为准
+    final_users = {}
+    for username, base_info in base_users.items():
+        # 关键修改：使用 dict(base_info) 将其转为普通字典，这样就有 .copy() 或直接修改的能力了
+        user_record = dict(base_info) 
+        
+        # 获取该用户的统计信息
+        user_stats = stats_data.get(username, {
+            "used_today": 0, 
+            "last_reset": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        })
+        
+        # 合并统计数据到用户信息中
+        user_record.update(user_stats)
+        final_users[username] = user_record
+    return final_users
 def save_users(data):
-    with open(USER_DB, "w") as f:
-        json.dump(data, f, indent=4)
+    # 只保存次数和时间，不保存敏感的 password 和 role
+    stats_to_save = {k: {"used_today": v["used_today"], "last_reset": v["last_reset"]} 
+                     for k, v in data.items()}
+    with open(USER_STATS, "w") as f:
+        json.dump(stats_to_save, f, indent=4)
 
+        
 with st.sidebar:
     # --- 1. Logo 置顶 ---
     current_lang = st.session_state.get('lang_selector', 'English')
-    target_logo = "J Studio LOGO.PNG" if current_lang == "English" else "J Studio LOGO CN.png"
+    target_logo = "assets/J Studio LOGO.PNG" if current_lang == "English" else "J Studio LOGO CN.png"
     st.image(target_logo, use_container_width=True)
+
 
     # --- 2. 登录与限额拦截 ---
     if "auth_user" not in st.session_state:
@@ -522,7 +549,7 @@ with st.sidebar:
         return None
 
     # 获取处理好的签名图片数据
-    sig_b64 = get_base64_img("J Signature.png")
+    sig_b64 = get_base64_img("assets/J Signature.png")
 
     if sig_b64:
         # 使用 Flexbox 布局确保文字与手写签名在垂直中轴线上完美对齐
