@@ -1136,9 +1136,9 @@ if not prices.empty and ticker in prices.columns:
         )
 
         if report_lang == "中文":
-            st.caption("💡 提示：Markdown 文件可使用 Typora, Obsidian 或 VS Code 打开，也可在浏览器中打印存为 PDF。")
+            st.caption("💡 提示：下载前先运行上面3个报告，Markdown 文件可使用 Typora, Obsidian 或 VS Code 打开，也可在浏览器中打印存为 PDF。")
         else:
-            st.caption("💡 Hint: Open MD files with Typora, Obsidian, or VS Code; or use 'Print to PDF' in your browser.")
+            st.caption("💡 Hint: Run abave 3 reports before download, Open MD files with Typora, Obsidian, or VS Code; or use 'Print to PDF' in your browser.")
             
             
             
