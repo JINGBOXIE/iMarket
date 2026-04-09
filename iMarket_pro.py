@@ -876,13 +876,13 @@ if not prices.empty and ticker in prices.columns:
 
     # 动态 UI 文字配置
     if report_lang == "English":
-        h_text = "🤖 iMarket Pro V3.0 Decision Matrix"
+        h_text = "🤖 Click below to generate your decision report"
         b1_text = "📊 Tech & Sentiment"
         b2_text = "💎 Finance & Strategy"
         b3_text = "🌀 Macro & Cycle"
         verdict_title = "⚖️ V3.0 Ultimate Verdict"
     else:
-        h_text = "🤖 iMarket Pro V3.0 决策矩阵"
+        h_text = "🤖 点击以下按钮后生成决策报告"
         b1_text = "📊 技术与情绪脉搏"
         b2_text = "💎 财务与战略底牌"
         b3_text = "🌀 宏观与周期雷达"
